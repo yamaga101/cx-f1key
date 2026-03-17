@@ -12,5 +12,18 @@ document.addEventListener('keydown', (e) => {
 
     e.preventDefault();
     e.stopPropagation();
-    chrome.runtime.sendMessage({ action });
+
+    // Extension context invalidated (after extension reload)
+    if (!chrome.runtime?.id) {
+        if (action === 'reload' || action === 'hardReload') {
+            location.reload();
+        }
+        return;
+    }
+
+    chrome.runtime.sendMessage({ action }).catch(() => {
+        if (action === 'reload' || action === 'hardReload') {
+            location.reload();
+        }
+    });
 }, true);
