@@ -1,0 +1,17 @@
+{
+    "manifest_version": 3,
+    "name": "Fキー タブ操作",
+    "version": "1.1.0",
+    "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
+    "permissions": ["tabs", "sessions"],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "run_at": "document_start"
+        }
+    ]
+}
