@@ -9,7 +9,7 @@ TOKEN_PATH = os.path.expanduser("~/.config/google-api/token.json")
 PARENT_FOLDER = "19N3NGQundvR-gxaQsWBu71it-uVARn7B"
 EXT_DIR = os.path.dirname(os.path.abspath(__file__))
 EXT_NAME = "chrome-f1-close-tab"
-FILES = ["manifest.json", "background.js", "content.js"]
+FILES = ["manifest.json", "background.js", "content.js", "popup.html"]
 
 creds = Credentials.from_authorized_user_file(TOKEN_PATH)
 drive = build("drive", "v3", credentials=creds)
@@ -30,7 +30,7 @@ else:
 
 for fname in FILES:
     fpath = os.path.join(EXT_DIR, fname)
-    mime = "application/json" if fname.endswith(".json") else "application/javascript"
+    mime = "application/json" if fname.endswith(".json") else "text/html" if fname.endswith(".html") else "application/javascript"
 
     q = f"name='{fname}' and '{folder_id}' in parents and trashed=false"
     existing = drive.files().list(q=q, fields="files(id)").execute().get("files", [])

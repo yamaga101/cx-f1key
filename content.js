@@ -34,6 +34,7 @@
             'F1': 'closeTab',
             'F2': 'prevTab',
             'F3': 'nextTab',
+            'F4': 'duplicateTab',
             'F5': e.shiftKey ? 'hardReload' : 'reload',
             'F6': 'reopenTab',
         };

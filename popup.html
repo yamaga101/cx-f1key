@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { width: 220px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; }
+h1 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px; text-align: center; }
+.row { display: flex; align-items: center; padding: 6px 0; }
+.key { background: #2d2d44; color: #7ecfff; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; min-width: 32px; text-align: center; margin-right: 10px; border: 1px solid #3d3d5c; }
+.key.wide { min-width: 72px; font-size: 11px; }
+.desc { font-size: 12px; color: #b0b0c0; }
+hr { border: none; border-top: 1px solid #2d2d44; margin: 8px 0; }
+.footer { margin-top: 10px; text-align: center; }
+.footer a { font-size: 11px; color: #7ecfff; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<h1>Fキー タブ操作</h1>
+<div class="row"><span class="key">F1</span><span class="desc">タブを閉じる</span></div>
+<div class="row"><span class="key">F2</span><span class="desc">前のタブ</span></div>
+<div class="row"><span class="key">F3</span><span class="desc">次のタブ</span></div>
+<div class="row"><span class="key">F4</span><span class="desc">タブを複製</span></div>
+<hr>
+<div class="row"><span class="key">F5</span><span class="desc">リロード</span></div>
+<div class="row"><span class="key wide">Shift+F5</span><span class="desc">強制リロード</span></div>
+<div class="row"><span class="key">F6</span><span class="desc">閉じたタブを復活</span></div>
+<div class="footer"><a id="shortcuts">ショートカット設定</a></div>
+<script>
+document.getElementById("shortcuts").addEventListener("click", () => {
+  chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
+});
+</script>
+</body>
+</html>
