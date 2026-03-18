@@ -1,82 +1,72 @@
-// === Commands API handler (browser-level, works on all pages including chrome://) ===
-chrome.commands.onCommand.addListener((command) => {
-    switch (command) {
-        case 'close-tab':
-            chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-                if (tab) chrome.tabs.remove(tab.id);
-            });
+// === Dedup: Commands API + content script can both fire ===
+const recentActions = new Map();
+const DEDUP_MS = 500;
+
+const isDuplicate = (action) => {
+    const now = Date.now();
+    // Normalize: Commands API uses 'close-tab', content script uses 'closeTab'
+    const key = action.replace(/-./g, c => c[1].toUpperCase());
+    if (recentActions.has(key) && now - recentActions.get(key) < DEDUP_MS) return true;
+    recentActions.set(key, now);
+    return false;
+};
+
+const getActiveTab = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab;
+};
+
+const getAllTabs = () => chrome.tabs.query({ currentWindow: true });
+
+const executeAction = async (action, tabId) => {
+    // Normalize kebab-case (Commands API) to camelCase (content script)
+    const normalized = action.replace(/-./g, c => c[1].toUpperCase());
+
+    switch (normalized) {
+        case 'closeTab':
+            if (tabId) await chrome.tabs.remove(tabId);
             break;
 
-        case 'prev-tab':
-            chrome.tabs.query({ currentWindow: true }, (tabs) => {
-                const idx = tabs.findIndex(t => t.active);
-                const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-                chrome.tabs.update(prev.id, { active: true });
-            });
+        case 'prevTab': {
+            const tabs = await getAllTabs();
+            const idx = tabs.findIndex(t => t.active);
+            const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+            await chrome.tabs.update(prev.id, { active: true });
+            break;
+        }
+
+        case 'nextTab': {
+            const tabs = await getAllTabs();
+            const idx = tabs.findIndex(t => t.active);
+            const next = tabs[(idx + 1) % tabs.length];
+            await chrome.tabs.update(next.id, { active: true });
+            break;
+        }
+
+        case 'reopenTab':
+            await chrome.sessions.restore();
             break;
 
-        case 'next-tab':
-            chrome.tabs.query({ currentWindow: true }, (tabs) => {
-                const idx = tabs.findIndex(t => t.active);
-                const next = tabs[(idx + 1) % tabs.length];
-                chrome.tabs.update(next.id, { active: true });
-            });
+        case 'reloadTab':
+            if (tabId) await chrome.tabs.reload(tabId);
             break;
 
-        case 'reopen-tab':
-            chrome.sessions.restore();
-            break;
-
-        case 'reload-tab':
-            chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-                if (tab) chrome.tabs.reload(tab.id);
-            });
-            break;
-
-        case 'hard-reload-tab':
-            chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-                if (tab) chrome.tabs.reload(tab.id, { bypassCache: true });
-            });
+        case 'hardReloadTab':
+            if (tabId) await chrome.tabs.reload(tabId, { bypassCache: true });
             break;
     }
+};
+
+// === Commands API handler (works on ALL pages including chrome://) ===
+chrome.commands.onCommand.addListener(async (command) => {
+    if (isDuplicate(command)) return;
+    const tab = await getActiveTab();
+    if (tab) await executeAction(command, tab.id);
 });
 
 // === Content script message handler (fallback for regular web pages) ===
 chrome.runtime.onMessage.addListener((message, sender) => {
-    const tab = sender.tab;
-    if (!tab) return;
-
-    switch (message.action) {
-        case 'closeTab':
-            chrome.tabs.remove(tab.id);
-            break;
-
-        case 'prevTab':
-            chrome.tabs.query({ currentWindow: true }, (tabs) => {
-                const idx = tabs.findIndex(t => t.id === tab.id);
-                const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-                chrome.tabs.update(prev.id, { active: true });
-            });
-            break;
-
-        case 'nextTab':
-            chrome.tabs.query({ currentWindow: true }, (tabs) => {
-                const idx = tabs.findIndex(t => t.id === tab.id);
-                const next = tabs[(idx + 1) % tabs.length];
-                chrome.tabs.update(next.id, { active: true });
-            });
-            break;
-
-        case 'reload':
-            chrome.tabs.reload(tab.id);
-            break;
-
-        case 'hardReload':
-            chrome.tabs.reload(tab.id, { bypassCache: true });
-            break;
-
-        case 'reopenTab':
-            chrome.sessions.restore();
-            break;
-    }
+    if (!message.action || !sender.tab) return;
+    if (isDuplicate(message.action)) return;
+    executeAction(message.action, sender.tab.id);
 });

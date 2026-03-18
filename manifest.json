@@ -1,31 +1,31 @@
 {
     "manifest_version": 3,
     "name": "Fキー タブ操作",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
     "permissions": ["tabs", "sessions"],
     "commands": {
         "close-tab": {
-            "suggested_key": { "default": "Alt+Shift+W" },
-            "description": "タブを閉じる (→F1に変更推奨)"
+            "suggested_key": { "default": "F1" },
+            "description": "タブを閉じる"
         },
         "prev-tab": {
-            "suggested_key": { "default": "Alt+Shift+A" },
-            "description": "前のタブ (→F2に変更推奨)"
+            "suggested_key": { "default": "F2" },
+            "description": "前のタブ"
         },
         "next-tab": {
-            "suggested_key": { "default": "Alt+Shift+D" },
-            "description": "次のタブ (→F3に変更推奨)"
+            "suggested_key": { "default": "F3" },
+            "description": "次のタブ"
         },
         "reopen-tab": {
-            "suggested_key": { "default": "Alt+Shift+Z" },
-            "description": "閉じたタブを復活 (→F6に変更推奨)"
+            "suggested_key": { "default": "F6" },
+            "description": "閉じたタブを復活"
         },
         "reload-tab": {
-            "description": "リロード (→F5に変更推奨)"
+            "description": "リロード (F5)"
         },
         "hard-reload-tab": {
-            "description": "強制リロード (→Shift+F5に変更推奨)"
+            "description": "強制リロード (Shift+F5)"
         }
     },
     "background": {
