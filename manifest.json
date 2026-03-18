@@ -1,9 +1,33 @@
 {
     "manifest_version": 3,
     "name": "Fキー タブ操作",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
     "permissions": ["tabs", "sessions"],
+    "commands": {
+        "close-tab": {
+            "suggested_key": { "default": "Alt+Shift+W" },
+            "description": "タブを閉じる (→F1に変更推奨)"
+        },
+        "prev-tab": {
+            "suggested_key": { "default": "Alt+Shift+A" },
+            "description": "前のタブ (→F2に変更推奨)"
+        },
+        "next-tab": {
+            "suggested_key": { "default": "Alt+Shift+D" },
+            "description": "次のタブ (→F3に変更推奨)"
+        },
+        "reopen-tab": {
+            "suggested_key": { "default": "Alt+Shift+Z" },
+            "description": "閉じたタブを復活 (→F6に変更推奨)"
+        },
+        "reload-tab": {
+            "description": "リロード (→F5に変更推奨)"
+        },
+        "hard-reload-tab": {
+            "description": "強制リロード (→Shift+F5に変更推奨)"
+        }
+    },
     "background": {
         "service_worker": "background.js"
     },
