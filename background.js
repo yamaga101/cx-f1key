@@ -1,3 +1,5 @@
+importScripts('auto-reload.js');
+
 // === Dedup: Commands API + content script can both fire ===
 const recentActions = new Map();
 const DEDUP_MS = 500;

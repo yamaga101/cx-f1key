@@ -31,5 +31,31 @@ document.getElementById("shortcuts").addEventListener("click", () => {
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 });
 </script>
+<div style="text-align:center;padding:4px 0;border-top:1px solid #2d2d44;margin-top:8px;">
+  <button id="updateBtn" title="git pull で最新に更新" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 8px;color:#7ecfff;opacity:0.7;">🔄</button>
+</div>
+<script>
+document.getElementById('updateBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('updateBtn');
+    btn.textContent = '⏳';
+    btn.style.pointerEvents = 'none';
+    try {
+        const response = await chrome.runtime.sendNativeMessage(
+            'com.yamaga101.gitpull',
+            { repo: 'chrome-f1-close-tab' }
+        );
+        btn.textContent = response.success ? '✅' : '❌';
+        btn.title = response.output || '';
+    } catch (e) {
+        btn.textContent = '❌';
+        btn.title = e.message || 'Native host not installed';
+    }
+    setTimeout(() => {
+        btn.textContent = '🔄';
+        btn.style.pointerEvents = '';
+        btn.title = 'git pull で最新に更新';
+    }, 3000);
+});
+</script>
 </body>
 </html>
