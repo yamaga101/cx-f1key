@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Fキー タブ操作",
-    "version": "1.5.0",
-    "description": "F1〜F6でタブ操作（閉じる・複製・切替・リロード・復活）",
+    "version": "1.5.1",
+    "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
     "permissions": ["tabs", "sessions"],
     "commands": {
         "close-tab": {
@@ -17,10 +17,7 @@
         "reopen-tab": {
             "description": "閉じたタブを復活 (F6)"
         },
-        "duplicate-tab": {
-            "description": "タブを複製 (F4)"
-        },
-        "reload-tab": {
+"reload-tab": {
             "description": "リロード (F5)"
         },
         "hard-reload-tab": {

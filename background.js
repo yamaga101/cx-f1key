@@ -44,10 +44,6 @@ const executeAction = async (action, tabId) => {
                 break;
             }
 
-            case 'duplicateTab':
-                if (tabId) await chrome.tabs.duplicate(tabId);
-                break;
-
             case 'reopenTab':
                 await chrome.sessions.restore();
                 break;
