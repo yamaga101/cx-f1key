@@ -4,57 +4,239 @@
 <meta charset="utf-8">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { width: 220px; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; }
+body {
+  width: 280px; padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #1a1a2e; color: #e0e0e0;
+}
 h1 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px; text-align: center; }
-.row { display: flex; align-items: center; padding: 6px 0; }
-.key { background: #2d2d44; color: #7ecfff; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; min-width: 32px; text-align: center; margin-right: 10px; border: 1px solid #3d3d5c; }
-.key.wide { min-width: 72px; font-size: 11px; }
+
+.row { display: flex; align-items: center; padding: 5px 0; gap: 8px; }
+.row.disabled .desc, .row.disabled .key { opacity: 0.4; }
+
+/* Toggle switch */
+.toggle { position: relative; display: inline-block; width: 28px; height: 16px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle .slider {
+  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+  background: #3d3d5c; border-radius: 16px; transition: 0.2s;
+}
+.toggle .slider:before {
+  position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px;
+  background: #888; border-radius: 50%; transition: 0.2s;
+}
+.toggle input:checked + .slider { background: #2d5a2d; }
+.toggle input:checked + .slider:before { background: #4caf50; transform: translateX(12px); }
+
+/* Key badge */
+.key {
+  background: #2d2d44; color: #7ecfff; font-size: 11px; font-weight: 600;
+  padding: 3px 6px; border-radius: 4px; min-width: 36px; text-align: center;
+  border: 1px solid #3d3d5c; cursor: pointer; flex-shrink: 0;
+  font-family: inherit; outline: none; appearance: none; -webkit-appearance: none;
+  line-height: 1.2; transition: all 0.2s;
+}
+.key:hover { background: #3d3d5c; border-color: #7ecfff; }
+.key.recording {
+  background: #5c3d1a; border-color: #ff9800; color: #ffcc80;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
 .desc { font-size: 12px; color: #b0b0c0; }
-hr { border: none; border-top: 1px solid #2d2d44; margin: 8px 0; }
-.footer { margin-top: 10px; text-align: center; }
-.footer a { font-size: 11px; color: #7ecfff; text-decoration: none; }
+hr { border: none; border-top: 1px solid #2d2d44; margin: 6px 0; }
+
+.actions { text-align: center; margin-top: 8px; }
+.reset-btn {
+  background: none; border: 1px solid #3d3d5c; color: #888;
+  font-size: 10px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+  font-family: inherit;
+}
+.reset-btn:hover { border-color: #7ecfff; color: #7ecfff; }
+
+.hint { font-size: 9px; color: #555; text-align: center; margin-top: 6px; }
+
+.footer {
+  margin-top: 8px; text-align: center; display: flex; justify-content: space-between;
+  align-items: center; border-top: 1px solid #2d2d44; padding-top: 8px;
+}
+.footer a { font-size: 11px; color: #7ecfff; text-decoration: none; cursor: pointer; }
 .footer a:hover { text-decoration: underline; }
+.footer button {
+  background: none; border: none; cursor: pointer; font-size: 14px;
+  color: #7ecfff; opacity: 0.7; padding: 2px 8px;
+}
+.footer button:hover { opacity: 1; }
 </style>
 </head>
 <body>
 <h1>Fキー タブ操作</h1>
-<div class="row"><span class="key">F1</span><span class="desc">タブを閉じる</span></div>
-<div class="row"><span class="key">F2</span><span class="desc">前のタブ</span></div>
-<div class="row"><span class="key">F3</span><span class="desc">次のタブ</span></div>
-<hr>
-<div class="row"><span class="key">F5</span><span class="desc">リロード</span></div>
-<div class="row"><span class="key wide">Shift+F5</span><span class="desc">強制リロード</span></div>
-<div class="row"><span class="key">F6</span><span class="desc">閉じたタブを復活</span></div>
-<div class="footer"><a id="shortcuts">ショートカット設定</a></div>
-<script>
-document.getElementById("shortcuts").addEventListener("click", () => {
-  chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
-});
-</script>
-<div style="text-align:center;padding:4px 0;border-top:1px solid #2d2d44;margin-top:8px;">
-  <button id="updateBtn" title="git pull で最新に更新" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 8px;color:#7ecfff;opacity:0.7;">🔄</button>
+<div id="bindings"></div>
+<div class="actions"><button class="reset-btn" id="resetBtn">デフォルトに戻す</button></div>
+<p class="hint">キーをクリックして変更（Escでキャンセル）</p>
+<div class="footer">
+  <a id="shortcuts">ショートカット設定</a>
+  <button id="updateBtn" title="git pull で最新に更新">🔄</button>
 </div>
+
 <script>
-document.getElementById('updateBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('updateBtn');
-    btn.textContent = '⏳';
-    btn.style.pointerEvents = 'none';
-    try {
-        const response = await chrome.runtime.sendNativeMessage(
-            'com.yamaga101.gitpull',
-            { repo: 'chrome-f1-close-tab' }
-        );
-        btn.textContent = response.success ? '✅' : '❌';
-        btn.title = response.output || '';
-    } catch (e) {
-        btn.textContent = '❌';
-        btn.title = e.message || 'Native host not installed';
+const DEFAULT_BINDINGS = {
+  closeTab:    { enabled: true, key: 'F1', modifiers: [] },
+  prevTab:     { enabled: true, key: 'F2', modifiers: [] },
+  nextTab:     { enabled: true, key: 'F3', modifiers: [] },
+  reload:      { enabled: true, key: 'F5', modifiers: [] },
+  hardReload:  { enabled: true, key: 'F5', modifiers: ['shift'] },
+  reopenTab:   { enabled: true, key: 'F6', modifiers: [] },
+};
+
+const ACTION_LABELS = {
+  closeTab: 'タブを閉じる',
+  prevTab: '前のタブ',
+  nextTab: '次のタブ',
+  reload: 'リロード',
+  hardReload: '強制リロード',
+  reopenTab: '閉じたタブを復活',
+};
+
+const ACTION_ORDER = ['closeTab', 'prevTab', 'nextTab', null, 'reload', 'hardReload', 'reopenTab'];
+const MOD_SYMBOLS = { shift: '⇧', ctrl: '⌃', alt: '⌥', meta: '⌘' };
+const KEY_DISPLAY = {
+  ' ': 'Space', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+  Backspace: '⌫', Delete: '⌦', Enter: '↵', Tab: '⇥', Escape: 'Esc',
+};
+
+const formatKey = (key, modifiers = []) => {
+  const parts = modifiers.map(m => MOD_SYMBOLS[m] || m);
+  parts.push(KEY_DISPLAY[key] || key);
+  return parts.join('');
+};
+
+let bindings = {};
+let recordingHandler = null;
+let recordingClickHandler = null;
+
+const loadBindings = async () => {
+  const result = await chrome.storage.local.get('bindings');
+  bindings = JSON.parse(JSON.stringify(DEFAULT_BINDINGS));
+  if (result.bindings) {
+    for (const [action, config] of Object.entries(result.bindings)) {
+      if (bindings[action]) bindings[action] = { ...bindings[action], ...config };
     }
-    setTimeout(() => {
-        btn.textContent = '🔄';
-        btn.style.pointerEvents = '';
-        btn.title = 'git pull で最新に更新';
-    }, 3000);
+  }
+};
+
+const saveBindings = () => chrome.storage.local.set({ bindings });
+
+const cancelRecording = () => {
+  if (recordingHandler) {
+    document.removeEventListener('keydown', recordingHandler, true);
+    recordingHandler = null;
+  }
+  if (recordingClickHandler) {
+    document.removeEventListener('click', recordingClickHandler, true);
+    recordingClickHandler = null;
+  }
+};
+
+const startRecording = (action, badge) => {
+  cancelRecording();
+  badge.classList.add('recording');
+  badge.textContent = '…';
+
+  recordingHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return;
+    if (e.key === 'Escape') { cancelRecording(); render(); return; }
+
+    const modifiers = [];
+    if (e.shiftKey) modifiers.push('shift');
+    if (e.ctrlKey) modifiers.push('ctrl');
+    if (e.altKey) modifiers.push('alt');
+    if (e.metaKey) modifiers.push('meta');
+
+    bindings[action].key = e.key;
+    bindings[action].modifiers = modifiers;
+    saveBindings();
+    cancelRecording();
+    render();
+  };
+  document.addEventListener('keydown', recordingHandler, true);
+
+  setTimeout(() => {
+    recordingClickHandler = (e) => {
+      if (e.target !== badge) { cancelRecording(); render(); }
+    };
+    document.addEventListener('click', recordingClickHandler, true);
+  }, 0);
+};
+
+const render = () => {
+  const container = document.getElementById('bindings');
+  container.innerHTML = '';
+
+  for (const action of ACTION_ORDER) {
+    if (action === null) { container.appendChild(document.createElement('hr')); continue; }
+    const config = bindings[action];
+
+    const row = document.createElement('div');
+    row.className = 'row' + (config.enabled ? '' : ' disabled');
+
+    const toggle = document.createElement('label');
+    toggle.className = 'toggle';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = config.enabled;
+    input.addEventListener('change', () => {
+      bindings[action].enabled = input.checked;
+      row.className = 'row' + (input.checked ? '' : ' disabled');
+      saveBindings();
+    });
+    const slider = document.createElement('span');
+    slider.className = 'slider';
+    toggle.appendChild(input);
+    toggle.appendChild(slider);
+
+    const keyBadge = document.createElement('button');
+    keyBadge.className = 'key';
+    keyBadge.textContent = formatKey(config.key, config.modifiers);
+    keyBadge.addEventListener('click', (e) => { e.stopPropagation(); startRecording(action, keyBadge); });
+
+    const desc = document.createElement('span');
+    desc.className = 'desc';
+    desc.textContent = ACTION_LABELS[action];
+
+    row.appendChild(toggle);
+    row.appendChild(keyBadge);
+    row.appendChild(desc);
+    container.appendChild(row);
+  }
+};
+
+loadBindings().then(render);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  bindings = JSON.parse(JSON.stringify(DEFAULT_BINDINGS));
+  saveBindings();
+  render();
+});
+
+document.getElementById('shortcuts').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
+
+document.getElementById('updateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('updateBtn');
+  btn.textContent = '⏳'; btn.style.pointerEvents = 'none';
+  try {
+    const response = await chrome.runtime.sendNativeMessage('com.yamaga101.gitpull', { repo: 'chrome-f1-close-tab' });
+    btn.textContent = response.success ? '✅' : '❌';
+    btn.title = response.output || '';
+  } catch (e) {
+    btn.textContent = '❌';
+    btn.title = e.message || 'Native host not installed';
+  }
+  setTimeout(() => { btn.textContent = '🔄'; btn.style.pointerEvents = ''; btn.title = 'git pull で最新に更新'; }, 3000);
 });
 </script>
 </body>
