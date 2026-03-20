@@ -229,7 +229,7 @@ document.getElementById('updateBtn').addEventListener('click', async () => {
   const btn = document.getElementById('updateBtn');
   btn.textContent = '⏳'; btn.style.pointerEvents = 'none';
   try {
-    const response = await chrome.runtime.sendNativeMessage('com.yamaga101.gitpull', { repo: 'chrome-f1-close-tab' });
+    const response = await chrome.runtime.sendNativeMessage('com.yamaga101.gitpull', { repo: 'cx-f1key' });
     btn.textContent = response.success ? '✅' : '❌';
     btn.title = response.output || '';
   } catch (e) {
