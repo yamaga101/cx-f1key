@@ -3,7 +3,13 @@
     "name": "Fキー タブ操作",
     "version": "1.7.1",
     "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
-    "permissions": ["tabs", "sessions", "alarms", "nativeMessaging", "storage"],
+    "permissions": [
+        "tabs",
+        "sessions",
+        "alarms",
+        "nativeMessaging",
+        "storage"
+    ],
     "commands": {
         "close-tab": {
             "description": "タブを閉じる (F1)"
@@ -17,7 +23,7 @@
         "reopen-tab": {
             "description": "閉じたタブを復活 (F6)"
         },
-"reload-tab": {
+        "reload-tab": {
             "description": "リロード (F5)"
         },
         "hard-reload-tab": {
@@ -33,10 +39,15 @@
     },
     "content_scripts": [
         {
-            "matches": ["<all_urls>"],
-            "js": ["content.js"],
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
             "run_at": "document_start",
             "all_frames": true
         }
-    ]
+    ],
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArUXgS5S3g8AHDoQdcMu9iu9THGuQKToHFldyka7MY4TX3dTpIPR8BgOhU0lCiSioTFU6AmjDcD95dQQG6OhQTJuRRTOqFTwwu13X24vaqFowCcpjHuR6okvLLds2AxTCNQYfyAP+x11VOw4dAo412vdYBjRXWEVfTdveFXhDZn74p4YZVjqyiqB17c8heoJmh1463K6PSqr2SCAvN7nb9G1bZWrXK7Dcwf/f51rrPuAFYIdVTPShAOIlmeWFE+XX0R2XYupy3tHz3fVOm5d29EfQJQ+VCxtPHgerrUd+80QRRsLsLEH+JWz0IbVjLFlnrh9D40+LPHsenpP3DjElyQIDAQAB"
 }
