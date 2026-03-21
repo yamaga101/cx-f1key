@@ -1,0 +1,111 @@
+# GitHub Actions: Release & Chrome Web Store Publish
+#
+# Triggers on tag push matching 'v*' (e.g., v1.5.2)
+#
+# Required GitHub Secrets:
+#   CWS_CLIENT_ID      - OAuth2 client ID from Google Cloud Console
+#   CWS_CLIENT_SECRET  - OAuth2 client secret
+#   CWS_REFRESH_TOKEN  - OAuth2 refresh token
+#   CWS_EXTENSION_ID   - Chrome Web Store extension ID (32-char string)
+
+name: Release & Publish to Chrome Web Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, Release, and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create extension ZIP
+        run: |
+          zip -j chrome-f1-close-tab-${{ steps.version.outputs.VERSION }}.zip \
+            manifest.json \
+            background.js \
+            content.js \
+            popup.html
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: chrome-f1-close-tab-${{ steps.version.outputs.VERSION }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Chrome Web Store Publishing (PUBLIC) ─────────────────────────────
+
+      - name: Get CWS OAuth2 access token
+        id: cws_token
+        run: |
+          RESPONSE=$(curl --silent --fail-with-body \
+            -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=${{ secrets.CWS_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CWS_CLIENT_SECRET }}" \
+            -d "refresh_token=${{ secrets.CWS_REFRESH_TOKEN }}" \
+            -d "grant_type=refresh_token")
+
+          ACCESS_TOKEN=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+          if [ -z "$ACCESS_TOKEN" ]; then
+            echo "::error::Failed to obtain CWS access token"
+            exit 1
+          fi
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Upload ZIP to Chrome Web Store
+        run: |
+          HTTP_STATUS=$(curl --silent --output /tmp/cws_upload.json \
+            --write-out "%{http_code}" \
+            -X PUT \
+            -H "Authorization: Bearer ${{ steps.cws_token.outputs.access_token }}" \
+            -H "x-goog-api-version: 2" \
+            -T "chrome-f1-close-tab-${{ steps.version.outputs.VERSION }}.zip" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${{ secrets.CWS_EXTENSION_ID }}")
+
+          RESPONSE=$(cat /tmp/cws_upload.json)
+          echo "Upload HTTP=$HTTP_STATUS"
+
+          UPLOAD_STATE=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('uploadState', 'UNKNOWN'))")
+          if [ "$UPLOAD_STATE" = "FAILURE" ]; then
+            echo "::error::CWS upload failed: $RESPONSE"
+            exit 1
+          fi
+          echo "Upload state: $UPLOAD_STATE"
+
+      - name: Publish to Chrome Web Store (PUBLIC)
+        run: |
+          HTTP_STATUS=$(curl --silent --output /tmp/cws_publish.json \
+            --write-out "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ steps.cws_token.outputs.access_token }}" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${{ secrets.CWS_EXTENSION_ID }}/publish")
+
+          RESPONSE=$(cat /tmp/cws_publish.json)
+          echo "Publish HTTP=$HTTP_STATUS"
+
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('status', ['UNKNOWN'])[0])" 2>/dev/null || echo "UNKNOWN")
+          if [ "$STATUS" = "OK" ] || [ "$STATUS" = "PUBLISHED_WITH_FRICTION" ] || [ "$STATUS" = "ITEM_PENDING_REVIEW" ]; then
+            echo "CWS publish succeeded (status: $STATUS)"
+          else
+            echo "::error::CWS publish failed (status: $STATUS): $RESPONSE"
+            exit 1
+          fi
