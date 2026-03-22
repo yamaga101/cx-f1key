@@ -76,6 +76,7 @@ hr { border: none; border-top: 1px solid #2d2d44; margin: 6px 0; }
 <p class="hint">キーをクリックして変更（Escでキャンセル）</p>
 <div class="footer">
   <a id="shortcuts">ショートカット設定</a>
+  <a id="debugBtn" title="Debug Console">🐛</a>
   <button id="updateBtn" title="git pull で最新に更新">🔄</button>
 </div>
 
@@ -223,6 +224,10 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 document.getElementById('shortcuts').addEventListener('click', () => {
   chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
+
+document.getElementById('debugBtn').addEventListener('click', () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('debug.html') });
 });
 
 document.getElementById('updateBtn').addEventListener('click', async () => {

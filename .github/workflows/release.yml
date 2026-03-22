@@ -36,8 +36,10 @@ jobs:
           zip -j chrome-f1-close-tab-${{ steps.version.outputs.VERSION }}.zip \
             manifest.json \
             background.js \
+            auto-reload.js \
             content.js \
-            popup.html
+            popup.html \
+            debug.html
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

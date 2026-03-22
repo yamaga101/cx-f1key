@@ -1,4 +1,6 @@
 (() => {
+    const EXT = 'cx-f1key';
+
     const DEFAULT_BINDINGS = {
         closeTab:    { enabled: true, key: 'F1', modifiers: [] },
         prevTab:     { enabled: true, key: 'F2', modifiers: [] },
@@ -31,17 +33,30 @@
         return modStr ? `${modStr}+${e.key}` : e.key;
     };
 
-    // Start with defaults, update when settings load
     let keyMap = buildKeyMap(DEFAULT_BINDINGS);
+    let debugMode = false;
 
+    // Debug logging (console only when enabled)
+    const dbg = (...args) => {
+        if (debugMode) console.log(`[${EXT}]`, ...args);
+    };
+
+    // Load settings
     if (chrome.storage?.local) {
-        chrome.storage.local.get('bindings').then(result => {
+        chrome.storage.local.get(['bindings', 'debugEnabled']).then(result => {
             if (result.bindings) keyMap = buildKeyMap(result.bindings);
+            debugMode = !!result.debugEnabled;
+            dbg('loaded', { url: location.href, frame: window === window.top ? 'top' : 'iframe' });
         }).catch(() => {});
 
         chrome.storage.onChanged.addListener((changes, area) => {
-            if (area === 'local' && changes.bindings?.newValue) {
+            if (area !== 'local') return;
+            if (changes.bindings?.newValue) {
                 keyMap = buildKeyMap(changes.bindings.newValue);
+                dbg('bindings updated');
+            }
+            if (changes.debugEnabled) {
+                debugMode = !!changes.debugEnabled.newValue;
             }
         });
     }
@@ -50,35 +65,62 @@
     const lastFired = new Map();
     const DEDUP_MS = 300;
 
-    const sendAction = (action) => {
-        if (!chrome.runtime?.id) {
-            fallback(action);
-            return;
-        }
+    // Retry delays for service worker wake-up (3 attempts)
+    const RETRY_DELAYS = [0, 100, 500];
 
-        chrome.runtime.sendMessage({ action }).catch(() => {
-            // Service worker may have been dormant — retry once after wake-up
-            setTimeout(() => {
-                if (!chrome.runtime?.id) {
-                    fallback(action);
-                    return;
-                }
-                chrome.runtime.sendMessage({ action }).catch(() => fallback(action));
-            }, 50);
-        });
+    // Toast notification for connection errors (top-frame only)
+    const showToast = (msg, type = 'error') => {
+        if (window !== window.top) return;
+        const el = document.createElement('div');
+        el.textContent = msg;
+        const bg = type === 'warn' ? '#e67e22' : '#e74c3c';
+        el.style.cssText = `position:fixed;top:12px;right:12px;z-index:2147483647;padding:8px 16px;border-radius:6px;font-size:13px;font-family:-apple-system,sans-serif;color:#fff;background:${bg};box-shadow:0 2px 8px rgba(0,0,0,.3);transition:opacity .3s;pointer-events:none;`;
+        (document.body || document.documentElement).appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4000);
     };
 
-    const fallback = (action) => {
-        if (action === 'reload' || action === 'hardReload') {
-            location.reload();
-        } else if (action === 'closeTab') {
-            window.close();
-        }
+    const sendAction = (action) => {
+        const attempt = (i) => {
+            // Extension context invalidated (extension updated/reloaded)
+            if (!chrome.runtime?.id) {
+                dbg('context invalidated', { action, attempt: i });
+                if (action === 'reload' || action === 'hardReload') {
+                    location.reload();
+                } else {
+                    showToast('拡張が更新されました。ページを再読み込みしてください', 'warn');
+                }
+                return;
+            }
+
+            chrome.runtime.sendMessage({ action }).then(() => {
+                dbg('sent ok', { action, attempt: i });
+            }).catch((err) => {
+                dbg('send failed', { action, attempt: i, error: err.message });
+                if (i < RETRY_DELAYS.length - 1) {
+                    setTimeout(() => attempt(i + 1), RETRY_DELAYS[i + 1]);
+                } else {
+                    // All retries exhausted — only reload actions can fallback
+                    if (action === 'reload' || action === 'hardReload') {
+                        location.reload();
+                    } else {
+                        showToast('キー操作に失敗。ページを再読み込みしてください', 'error');
+                    }
+                }
+            });
+        };
+
+        attempt(0);
     };
 
     const handleKey = (e) => {
         const keyId = getKeyId(e);
         const action = keyMap[keyId];
+
+        // Debug: log all F-key presses even if not mapped
+        if (debugMode && e.key.startsWith('F') && e.key.length <= 3) {
+            dbg('keydown', { keyId, action: action || 'unmapped', target: e.target.tagName });
+        }
+
         if (!action) return;
 
         // Dedup rapid fires

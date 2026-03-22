@@ -1,5 +1,15 @@
 importScripts('auto-reload.js');
 
+// === Debug ===
+const SW_START = Date.now();
+const DEBUG_LOG_MAX = 200;
+const actionLog = [];
+
+const logAction = (entry) => {
+    actionLog.push({ ts: Date.now(), ...entry });
+    if (actionLog.length > DEBUG_LOG_MAX) actionLog.splice(0, actionLog.length - DEBUG_LOG_MAX);
+};
+
 // === Settings ===
 const DEFAULT_BINDINGS = {
     closeTab:    { enabled: true, key: 'F1', modifiers: [] },
@@ -55,12 +65,15 @@ const getActiveTab = async () => {
 
 const getAllTabs = () => chrome.tabs.query({ currentWindow: true });
 
-const executeAction = async (action, tabId) => {
+const executeAction = async (action, tabId, source) => {
     // Normalize kebab-case (Commands API) to camelCase (content script)
     const normalized = action.replace(/-./g, c => c[1].toUpperCase());
 
     // Check if action is enabled in settings
-    if (!isActionEnabled(normalized)) return;
+    if (!isActionEnabled(normalized)) {
+        logAction({ action: normalized, source, result: 'disabled' });
+        return;
+    }
 
     try {
         switch (normalized) {
@@ -98,21 +111,54 @@ const executeAction = async (action, tabId) => {
                 if (tabId) await chrome.tabs.reload(tabId, { bypassCache: true });
                 break;
         }
+        logAction({ action: normalized, source, tabId, result: 'ok' });
     } catch (e) {
-        // Tab may have been closed/navigated before action completed — ignore
+        logAction({ action: normalized, source, tabId, result: 'error', error: e.message });
     }
 };
 
 // === Commands API handler (works on ALL pages including chrome://) ===
 chrome.commands.onCommand.addListener(async (command) => {
-    if (isDuplicate(command)) return;
+    if (isDuplicate(command)) {
+        logAction({ action: command, source: 'commands', result: 'dedup' });
+        return;
+    }
     const tab = await getActiveTab();
-    if (tab) await executeAction(command, tab.id);
+    if (tab) await executeAction(command, tab.id, 'commands');
 });
 
-// === Content script message handler (fallback for regular web pages) ===
-chrome.runtime.onMessage.addListener((message, sender) => {
+// === Message handler ===
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Ping for health check
+    if (message.type === 'ping') {
+        sendResponse({ pong: true, uptime: Date.now() - SW_START });
+        return;
+    }
+
+    // Debug info request
+    if (message.type === 'getDebugInfo') {
+        sendResponse({
+            swStart: SW_START,
+            uptime: Date.now() - SW_START,
+            version: chrome.runtime.getManifest().version,
+            bindings: currentBindings,
+            actionLog: actionLog.slice(-50),
+        });
+        return;
+    }
+
+    // Clear debug log
+    if (message.type === 'clearDebugLog') {
+        actionLog.length = 0;
+        sendResponse({ ok: true });
+        return;
+    }
+
+    // Normal action from content script
     if (!message.action || !sender.tab) return;
-    if (isDuplicate(message.action)) return;
-    executeAction(message.action, sender.tab.id);
+    if (isDuplicate(message.action)) {
+        logAction({ action: message.action, source: 'content', result: 'dedup' });
+        return;
+    }
+    executeAction(message.action, sender.tab.id, 'content');
 });
