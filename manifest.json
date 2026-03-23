@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Fキー タブ操作",
-    "version": "1.8.0",
+    "version": "1.8.1",
     "description": "F1〜F6でタブ操作（閉じる・切替・リロード・復活）",
     "permissions": [
         "tabs",
